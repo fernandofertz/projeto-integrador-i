@@ -1,39 +1,50 @@
-import React, {useState} from "react";
-import { Table, Input, Button, Space } from "antd";
+import React, { useState, useEffect } from "react";
+import { useNavigate, BrowserRouter, Route} from 'react-router-dom';
+import { Table, Input, Button, Space, Pagination } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import axios from "axios";
+import EditNcComponent from "./NC/EditNcComponent";
 
 const TableComponent = () => {
+    const [searchColumn, setSearchColumn] = useState();
+    const [data, setData] = useState([]);
+    const [pageNumber, setPageNumber] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalItems, setTotalItems] = useState(0);
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const navigate = useNavigate();
 
-    const [searchText, setSearchText] = useState("");
-    const [searchColumn, setSearchColumn] = useState("");
+    useEffect(() => {
+        fetchData(pageNumber, pageSize);
+    }, [pageNumber, pageSize]);
 
-    const data = [{
-        key: "1",
-        funcionario: "João",
-        num_sequencial: 1,
-        setorRegistro: "RH",
-        setorIncidente: 'Produção',
-        data: "2022-04-15",
-        observacoes: "Observação 1",
-    },
-    {
-        key: "2",
-        funcionario: "Maria",
-        num_sequencial: 2,
-        setorRegistro: "TI",
-        setorIncidente: 'Almoxarifado',
-        data: "2022-05-01",
-        observacoes: "Observação 2",
-    },
-    {
-        key: "3",
-        funcionario: "Pedro",
-        num_sequencial: 3,
-        setorRegistro: "Vendas",
-        setorIncidente: "Pintura",
-        data: "2022-05-03",
-        observacoes: "Observação 3",
-    }]
+    const fetchData = async (pageNumber, pageSize) => {
+        const offset = (pageNumber - 1) * pageSize;
+        try {
+            const response = await axios.get(
+                `http://localhost:8080/api/v1/nc/getAll?offset=${offset}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+            );
+            setData(response.data.content);
+            setTotalItems(response.data.totalItems);
+            console.log(response)
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleEdit = (record) => {
+        setSelectedItem(record);
+        console.log(selectedItem)
+        setEditModalVisible(true);
+    };
+
+  
+    const handlePageChange = (page, pageSize) => {
+      setPageNumber(page);
+      setPageSize(pageSize);
+    };
+
 
     const handleSearch = (selectedKeys, confirm, dataIndex) => {
         confirm();
@@ -45,6 +56,12 @@ const TableComponent = () => {
         clearFilters();
         setSearchText("");
     };
+
+    useEffect(() => {
+        if (selectedItem) {
+          navigate(`/nc/editar`, { state: selectedItem });
+        }
+      }, [navigate, selectedItem]);
 
     const getColumnSearchProps = (dataIndex) => ({
         filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
@@ -97,7 +114,7 @@ const TableComponent = () => {
         ),
     })
 
-    const columns = [  {    title: "Funcionário",    dataIndex: "funcionario",    key: "funcionario",    ...getColumnSearchProps("funcionario"), // adiciona getColumnSearchProps a esta coluna    sorter: (a, b) => a.funcionario.localeCompare(b.funcionario),    sortDirections: ["descend", "ascend"],
+    const columns = [  {    title: "Funcionário",    dataIndex: "id_colaborador",    key: "id_colaborador",    ...getColumnSearchProps("funcionario"), // adiciona getColumnSearchProps a esta coluna    sorter: (a, b) => a.funcionario.localeCompare(b.funcionario),    sortDirections: ["descend", "ascend"],
         filters: [
         { text: "João", value: "João" },
         { text: "Maria", value: "Maria" },
@@ -117,9 +134,9 @@ const TableComponent = () => {
     },
     {
         title: "Setor Registro",
-        dataIndex: "setorRegistro",
-        key: "setorRegistro",
-        ...getColumnSearchProps("setorRegistro"), // adiciona getColumnSearchProps a esta coluna
+        dataIndex: "setor",
+        key: "setor",
+        ...getColumnSearchProps("setor"), // adiciona getColumnSearchProps a esta coluna
         sorter: (a, b) => a.setor.localeCompare(b.setor),
         sortDirections: ["descend", "ascend"],
         filters: [
@@ -132,9 +149,9 @@ const TableComponent = () => {
     },
     {
         title: "Setor Incidente",
-        dataIndex: "setorIncidente",
-        key: "setorIncidente",
-        ...getColumnSearchProps("setorIncidente"), // adiciona getColumnSearchProps a esta coluna
+        dataIndex: "tipo_nc",
+        key: "tipo_nc",
+        ...getColumnSearchProps("tipo_nc"), // adiciona getColumnSearchProps a esta coluna
         sorter: (a, b) => a.setor.localeCompare(b.setor),
         sortDirections: ["descend", "ascend"],
         filters: [
@@ -147,17 +164,17 @@ const TableComponent = () => {
     },
     {
         title: "Data",
-        dataIndex: "data",
-        key: "data",
-        ...getColumnSearchProps("data"), // adiciona getColumnSearchProps a esta coluna
+        dataIndex: "dt_abertura",
+        key: "dt_abertura",
+        ...getColumnSearchProps("dt_abertura"), // adiciona getColumnSearchProps a esta coluna
         sorter: (a, b) => new Date(a.data) - new Date(b.data),
         sortDirections: ["descend", "ascend"],
         width: 220
     },
     {
-        title: "Observações",
-        dataIndex: "observacoes",
-        key: "observacoes",
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
         ...getColumnSearchProps("observacoes"), // adiciona getColumnSearchProps a esta coluna
         width: 220
     },
@@ -167,7 +184,7 @@ const TableComponent = () => {
         width: 200,
         render: (_, record) => (
           <Space size="large">
-            <a>Editar</a>
+            <a onClick={() => handleEdit(record)}>Editar</a>
             <a>Deletar</a>
           </Space>
         ),
@@ -176,7 +193,19 @@ const TableComponent = () => {
 
   return (
     <div>
-      <Table dataSource={data} columns={columns} style={{width:'100%', marginTop:'-165px'}}/>
+          <Table dataSource={data} columns={columns} rowKey="id" style={{width:'100%', marginTop:'-250px'}}/>
+          
+          <Pagination
+            current={pageNumber}
+            pageSize={pageSize}
+            total={totalItems}
+            onChange={handlePageChange}
+          />
+          {editModalVisible && 
+            <EditNcComponent
+                initialData={selectedItem}
+            />
+        }
     </div>
   )
 }
